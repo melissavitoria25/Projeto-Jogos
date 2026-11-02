@@ -23,6 +23,9 @@ public class Player : MonoBehaviour
     //Referência ao gerenciador do cenário
     [SerializeField] GerenciadorCenario gerenciadorCenario;
 
+    //Posição em que o personagem reaparece
+    [SerializeField] Transform pontoRespawn;
+
     // Configurações do seguidor
     [SerializeField] float distanciaSeguidor = 2f;
     [SerializeField] float velocidadeSeguidor = 5f;
@@ -36,6 +39,7 @@ public class Player : MonoBehaviour
     [SerializeField] float tempoTroca = 0.5f;
 
     // Identifica o personagem principal e se está trocando
+    // Variaveis que controlam a troca
     bool isPrincipal;
     bool isSwapping;
 
@@ -211,22 +215,21 @@ public class Player : MonoBehaviour
             return;
         }
 
-        // Faz o principal pular
+        // Apenas o personagem principal tenta pular
         principal.ExecutarPulo();
-
-        // Faz o seguidor tentar executar o mesmo pulo
-        if (principal.outroScript != null)
-        {
-            principal.outroScript.ExecutarPulo();
-        }
     }
 
     // Executa o pulo e o pulo duplo
     void ExecutarPulo()
     {
-        // Primeiro pulo: personagem está no chão
-        if (playerFeet.IsTouchingLayers(
+
+        // O feetcollider está tocando algum collider da Layer Ground? Se for False, o primeiro pulo não acontece
+        if (Physics2D.OverlapBox(
+            playerFeet.bounds.center,
+            playerFeet.bounds.size,
+            0f,
             LayerMask.GetMask("Ground")))
+
         {
             playerRB.linearVelocityY = jumpIntensity;
 
@@ -358,4 +361,67 @@ public class Player : MonoBehaviour
         isSwapping = false;
         outroScript.isSwapping = false;
     }
+
+    //Função que interrompe o movimento e reposiciona o personagem
+    public void Respawn()
+    {
+        // Interrompe o movimento atual
+        playerRB.linearVelocity = Vector2.zero;
+
+        // Limpa a direção de movimento
+        xDir = 0;
+
+        // Posiciona o personagem no ponto de respawn
+        if (pontoRespawn != null)
+        {
+            playerRB.position = pontoRespawn.position;
+        }
+
+        // Reinicia o pulo duplo
+        canDoubleJump = false;
+
+        // Para a animação de corrida
+        playerAnimator.SetBool("IsRunning", false);
+    }
+
+    // Restaura o papel inicial de cada personagem
+    // A função recebe um parametro chamado principal do tipo bool
+    // Quando usamos player1.ReiniciarPersonagem(true) o player1 volta a ser o principal e quando usamos player2.ReiniciarPersonagem(false) o player2 volta a ser o seguidor
+    public void ReiniciarPersonagem(bool principal)
+    {
+        //Interrompe qualquer corrotina de troca (animação de troca) se estiver acontecendo
+        StopAllCoroutines();
+
+        //Restaura o comportamento físico normal do personagem, porque durante a troca usamos Kinematic
+        playerRB.bodyType = RigidbodyType2D.Dynamic;
+
+        // Libera o personagem para se movimentar novamente
+        isSwapping = false;
+
+        // Define quem será o personagem principal
+        isPrincipal = principal;
+
+        // Limpa a direção e a velocidade
+        // Interrompe qualquer movimento horizontal
+        xDir = 0;
+        // Zera a velocidade do personagem
+        playerRB.linearVelocity = Vector2.zero;
+
+        // Reinicia o controle do pulo duplo
+        canDoubleJump = false;
+
+        // Para a animação de corrida
+        playerAnimator.SetBool("IsRunning", false);
+
+        // Atualiza a Tag do personagem
+        if (isPrincipal)
+        {
+            gameObject.tag = "Principal";
+        }
+        else
+        {
+            gameObject.tag = "Seguidor";
+        }
+    }
+
 }
