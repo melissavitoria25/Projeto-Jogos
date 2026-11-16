@@ -1,21 +1,20 @@
+
+using System.Collections;
 using UnityEngine;
 
 public class Espinhos : MonoBehaviour
 {
-    // Referências aos dois personagens
+    [Header("Personagem que pode ser atingido")]
+    [SerializeField] Player jogadorPermitido;
+
+    [Header("Referências")]
     [SerializeField] Player player1;
     [SerializeField] Player player2;
 
-    // Referência ao gerenciador do cenário
     [SerializeField] GerenciadorCenario gerenciadorCenario;
 
-    // Impede processar vários contatos na mesma atualização de física
     bool processandoContato = false;
 
-    // Detecta quando algum personagem toca nos espinhos
-    // Primeiro interrompemos qualquer troca de personagem e restauramos os papéis. 
-    // Depois reposicionamos os 2 players pro inicio da fase e reiniciamos o cenário
-    // Queremos evitar que uma troca ainda em andamento continue interferindo no respawn
     void OnTriggerEnter2D(Collider2D outro)
     {
         if (processandoContato)
@@ -23,29 +22,51 @@ public class Espinhos : MonoBehaviour
             return;
         }
 
-        // Verifica se o Collider pertence a um personagem
+        // Identifica qual personagem encostou
         Player personagem = outro.GetComponentInParent<Player>();
 
-        if (personagem != null)
+        if (personagem == null)
         {
-            Debug.Log("Personagem atingiu os espinhos!");
-
-            // Restaura os papéis iniciais e cancela possíveis trocas
-            player1.ReiniciarPersonagem(true);
-            player2.ReiniciarPersonagem(false);
-
-            // Retorna os dois personagens aos pontos iniciais
-            player1.Respawn();
-            player2.Respawn();
-
-            // Restaura as plataformas e os obstáculos do mundo 1 (mundo do player1)
-            gerenciadorCenario.ReiniciarCenario();
+            return;
         }
+
+        // Impede que o personagem errado morra
+        if (personagem != jogadorPermitido)
+        {
+            return;
+        }
+
+        // Confere as referências
+        if (player1 == null || player2 == null ||
+            gerenciadorCenario == null)
+        {
+            Debug.LogError("Referências dos espinhos não configuradas!");
+            return;
+        }
+
+        processandoContato = true;
+
+        Debug.Log(personagem.name + " atingiu seus espinhos!");
+
+        // Restaura os papéis iniciais
+        player1.ReiniciarPersonagem(true);
+        player2.ReiniciarPersonagem(false);
+
+        // Retorna os personagens aos respectivos pontos
+        player1.Respawn();
+        player2.Respawn();
+
+        // Retorna o cenário ao mundo do Player1
+        gerenciadorCenario.ReiniciarCenario();
+
+        // Libera novos contatos depois do respawn
+        StartCoroutine(LiberarContato());
     }
 
-    
-    void OnEnable()
+    IEnumerator LiberarContato()
     {
+        yield return new WaitForSeconds(0.5f);
+
         processandoContato = false;
     }
 }
